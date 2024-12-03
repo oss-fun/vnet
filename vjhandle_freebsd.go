@@ -1,14 +1,18 @@
 package vnet
 
+// NsHandle is a handle to a vnet jail. It can be cast directly
+// to an int and used as a jail ID.
 type VjHandle int
 
-func (vj VjHandle) Equal(_ VjHandle) bool {
+// Equal determines if two vnet handles refer to the same vnet jail.
+func (vj VjHandle) Equal(other VjHandle) bool {
+	if vj == other {
+		return true
+	}
 	return false
 }
 
 // String shows the file descriptor number and its dev and inode.
-// It is only implemented on Linux, and returns "NS(none)" on other
-// platforms.
 func (vj VjHandle) String() string {
 	return "NS(none)"
 }
