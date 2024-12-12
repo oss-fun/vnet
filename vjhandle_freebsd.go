@@ -12,9 +12,12 @@ func (vj VjHandle) Equal(other VjHandle) bool {
 	return false
 }
 
-// String shows the file descriptor number and its dev and inode.
+// String shows the jail ID and its dev and inode.
 func (vj VjHandle) String() string {
-	return "NS(none)"
+	if ns == -1 {
+		return "NS(none)"
+	}
+	return "NS()"
 }
 
 // UniqueId returns a string which uniquely identifies the namespace
@@ -40,3 +43,4 @@ func (vj *VjHandle) Close() error {
 func None() VjHandle {
 	return VjHandle(-1)
 }
+
