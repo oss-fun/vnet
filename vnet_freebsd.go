@@ -1,15 +1,26 @@
 package vnet
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"golang.org/x/sys/unix"
+)
 
 var ErrNotImplemented = errors.New("not implemented")
 
-func SetVnet(vj VjHandle, vjtype int) error {
-	return ErrNotImplemented
-}
+const (
+	JAIL_CREATE = 0x01
+	JAIL_ATTACH = 0x04
+)
 
 func Set(vj VjHandle) error {
-	return ErrNotImplemented
+	_, _, errno := unix.Syscall(uintptr(unix.SYS_JAIL_ATTACH), uint(jid), 0, 0)
+	if errno != 0 {
+		return fmt.Errorf("Jail_attach: %s", errno.Error())
+	}
+
+	return nil
 }
 
 func New() (VjHandle, error) {

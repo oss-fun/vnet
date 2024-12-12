@@ -7,10 +7,6 @@ import "errors"
 
 var ErrNotImplemented = errors.New("not implemented")
 
-func SetVnet(vj VjHandle, vjtype int) error {
-	return ErrNotImplemented
-}
-
 func Set(vj VjHandle) error {
 	return ErrNotImplemented
 }
