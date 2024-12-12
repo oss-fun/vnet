@@ -14,7 +14,7 @@ func (vj VjHandle) Equal(other VjHandle) bool {
 
 // String shows the jail ID and its dev and inode.
 func (vj VjHandle) String() string {
-	if ns == -1 {
+	if vj == -1 {
 		return "NS(none)"
 	}
 	return "NS()"

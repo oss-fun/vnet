@@ -17,7 +17,7 @@ const (
 // Set sets the host or current jail to the jail represented
 // by VjHandle.
 func Set(vj VjHandle) error {
-	_, _, errno := unix.Syscall(uintptr(unix.SYS_JAIL_ATTACH), uint(jid), 0, 0)
+	_, _, errno := unix.Syscall(uintptr(unix.SYS_JAIL_ATTACH), uintptr(vj), 0, 0)
 	if errno != 0 {
 		return fmt.Errorf("Jail_attach: %s", errno.Error())
 	}
