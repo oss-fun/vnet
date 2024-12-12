@@ -55,6 +55,7 @@ func init_vnet() ([]unix.Iovec, error) {
 	}{
 		{"path", "/"},
 		{"vnet", 1},
+		{"children.max", "99"},
 		{"persist", nil},
 	}
 
