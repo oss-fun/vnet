@@ -3,6 +3,7 @@ package vnet
 import (
 	"errors"
 	"fmt"
+	"os"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -14,6 +15,8 @@ const (
 	JAIL_CREATE = 0x01
 	JAIL_ATTACH = 0x04
 )
+
+const defVnetPath = "/var/run/netns/"
 
 // Set sets the host or current jail to the jail represented
 // by VjHandle.
@@ -34,7 +37,7 @@ func New() (VjHandle, error) {
 		return -1, fmt.Errorf("init_vnet failed: %s", err)	
 	}
 
-	_, _, errno := unix.Syscall(
+	jid, _, errno := unix.Syscall(
 		unix.SYS_JAIL_SET, 
 		uintptr(unsafe.Pointer(&iov[0])), 
 		uintptr(len(iov)),
@@ -42,8 +45,15 @@ func New() (VjHandle, error) {
 	)
 	if errno != 0 {
 		return -1, fmt.Errorf("jail_set failed: %s", errno.Error())
-	} 
-	
+	}
+
+	vnetPath := fmt.Sprintf("%snetns%d", defVnetPath, os.Getpid())
+	f, err := os.OpenFile(vnetPath, os.O_CREATE|os.O_EXCL, 0444)
+	if err != nil {
+		return VjHandle(jid), fmt.Errorf("OpenFile failed: %s", err)
+	}
+	f.Close()
+
 	return Get()
 }
 
@@ -55,7 +65,7 @@ func init_vnet() ([]unix.Iovec, error) {
 	}{
 		{"path", "/"},
 		{"vnet", 1},
-		{"children.max", "99"},
+		{"children.max", 99},
 		{"persist", nil},
 	}
 
