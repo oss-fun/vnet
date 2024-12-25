@@ -1,5 +1,12 @@
 package vnet
 
+import (
+	"fmt"
+	"os"
+
+	"golang.org/x/sys/unix"
+)
+
 // NsHandle is a handle to a vnet jail. It can be cast directly
 // to an int and used as a jail ID.
 type VjHandle int
@@ -34,8 +41,17 @@ func (vj VjHandle) IsOpen() bool {
 }
 
 // Close closes the NsHandle and resets its file descriptor to -1.
-// It is only implemented on Linux.
-func (vj *VjHandle) Close() error {
+// In FreeBSD, Close must be called after the process in jail.
+func (vj VjHandle) Close() error {
+	_, _, errno := unix.Syscall(unix.SYS_JAIL_REMOVE, uintptr(int(vj)), 0, 0)
+	if errno != 0 {
+		return fmt.Errorf("jail_remove failed: %s", errno.Error())
+	}
+
+	err := os.Remove(vnetPath(vj))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

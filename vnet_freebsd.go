@@ -47,14 +47,13 @@ func New() (VjHandle, error) {
 		return -1, fmt.Errorf("jail_set failed: %s", errno.Error())
 	}
 
-	vnetPath := fmt.Sprintf("%snetns%d", defVnetPath, os.Getpid())
-	f, err := os.OpenFile(vnetPath, os.O_CREATE|os.O_EXCL, 0444)
+	f, err := os.OpenFile(vnetPath(VjHandle(jid)), os.O_CREATE|os.O_EXCL, 0444)
 	if err != nil {
 		return VjHandle(jid), fmt.Errorf("OpenFile failed: %s", err)
 	}
 	f.Close()
 
-	return Get()
+	return VjHandle(jid), nil
 }
 
 // init_vnet returns []unix.Iovec{} for vnet jail.
@@ -100,6 +99,11 @@ func init_vnet() ([]unix.Iovec, error) {
 	}
 
 	return iovs, nil
+}
+
+// vnetPath return vnet jail file path.
+func vnetPath(vj VjHandle) string {
+	return fmt.Sprintf("%snetns%d", defVnetPath, vj)
 }
 
 func NewNamed(name string) (VjHandle, error) {
