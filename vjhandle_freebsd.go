@@ -12,26 +12,66 @@ import (
 type VjHandle int
 
 // Equal determines if two vnet handles refer to the same vnet jail.
+// This is done by comparing the device and inode that the jail point to.
 func (vj VjHandle) Equal(other VjHandle) bool {
 	if vj == other {
 		return true
 	}
-	return false
+
+	var s1, s2 unix.Stat_t
+	f1, err := os.Open(vnetPath(vj));
+	if err != nil {
+		return false
+	}
+	defer f1.Close()
+	f2, err := os.Open(vnetPath(other));
+	if err != nil {
+		return false
+	}
+	defer f2.Close()
+	if err = unix.Fstat(int(f1.Fd()), &s1); err != nil {
+		return false
+	}
+	if err = unix.Fstat(int(f2.Fd()), &s2); err != nil {
+		return false
+	}
+
+	return (s1.Dev == s2.Dev) && (s1.Ino == s2.Ino)
 }
 
-// String shows the jail ID.
+// String shows the jail ID and dev and inode.
 func (vj VjHandle) String() string {
 	if vj == -1 {
 		return "vnet(none)"
 	}
-	return fmt.Sprintf("vnet(%d)", vj)
+	var s unix.Stat_t
+	f, err := os.Open(vnetPath(vj))
+	if err != nil {
+		return "vnet(none)"
+	}
+	defer f.Close()
+	if err := unix.Fstat(int(f.Fd()), &s); err != nil {
+		return "vnet(unknown)"
+	}
+	return fmt.Sprintf("vnet(%d: %d, %d)", vj, s.Dev, s.Ino)
 }
 
-// UniqueId returns a string which uniquely identifies the namespace
-// associated with the network handle. It is only implemented on Linux,
-// and returns "NS(none)" on other platforms.
+// UniqueId returns a string which uniquely identifies the jail
+// associated with the VjHandle.
 func (vj VjHandle) UniqueId() string {
-	return "vnet(none)"
+	if vj == -1 {
+		return "vnet(none)"
+	}
+	var s unix.Stat_t
+	f, err := os.Open(vnetPath(vj))
+	if err != nil {
+		return "vnet(none)"
+	}
+	defer f.Close()
+	if err := unix.Fstat(int(f.Fd()), &s); err != nil {
+		return "vnet(unknown)"
+	}
+	return fmt.Sprintf("vnet(%d:%d)", s.Dev, s.Ino)
 }
 
 // IsOpen returns true if Close() has not been called.

@@ -17,10 +17,22 @@ func TestNew(t *testing.T) {
 
 /*
 func TestClose(t *testing.T) {
+	var jid VjHandle
 	jid := 0
 	err := jid.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+*/
+
+/*
+func TestString(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var jid VjHandle
+	jid = 0
+	fmt.Println(jid.String())
 }
 */
