@@ -19,25 +19,24 @@ func (vj VjHandle) Equal(other VjHandle) bool {
 	return false
 }
 
-// String shows the jail ID and its dev and inode.
+// String shows the jail ID.
 func (vj VjHandle) String() string {
 	if vj == -1 {
-		return "NS(none)"
+		return "vnet(none)"
 	}
-	return "NS()"
+	return fmt.Sprintf("vnet(%d)", vj)
 }
 
 // UniqueId returns a string which uniquely identifies the namespace
 // associated with the network handle. It is only implemented on Linux,
 // and returns "NS(none)" on other platforms.
 func (vj VjHandle) UniqueId() string {
-	return "NS(none)"
+	return "vnet(none)"
 }
 
-// IsOpen returns true if Close() has not been called. It is only implemented
-// on Linux and always returns false on other platforms.
+// IsOpen returns true if Close() has not been called.
 func (vj VjHandle) IsOpen() bool {
-	return false
+	return vj != -1
 }
 
 // Close closes the NsHandle and resets its file descriptor to -1.
@@ -52,6 +51,7 @@ func (vj VjHandle) Close() error {
 	if err != nil {
 		return err
 	}
+	vj = -1
 	return nil
 }
 
