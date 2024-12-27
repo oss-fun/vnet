@@ -1,9 +1,12 @@
 package vnet
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -16,7 +19,16 @@ const (
 	JAIL_ATTACH = 0x04
 )
 
-const defVnetPath = "/var/run/netns/"
+
+// vnetPath return /var/run/netns/netns<jid>.
+func vnetPath(vj VjHandle) string {
+	return fmt.Sprintf("/var/run/netns/netns%d", vj)
+}
+
+// status return /proc/<pid>/status.
+func status(pid int) string {
+	return fmt.Sprintf("/proc/%d/status", pid)
+}
 
 // Set sets the host or current jail to the jail represented
 // by VjHandle.
@@ -24,6 +36,10 @@ func Set(vj VjHandle) error {
 	_, _, errno := unix.Syscall(unix.SYS_JAIL_ATTACH, uintptr(vj), 0, 0)
 	if errno != 0 {
 		return fmt.Errorf("jail_attach failed: %s", errno.Error())
+	}
+
+	if err := os.Symlink(status(os.Getpid()), vnetPath(vj)); err != nil {
+		return fmt.Errorf("Symlink failed: %s", err)
 	}
 
 	return nil
@@ -47,11 +63,9 @@ func New() (VjHandle, error) {
 		return -1, fmt.Errorf("jail_set failed: %s", errno.Error())
 	}
 
-	f, err := os.OpenFile(vnetPath(VjHandle(jid)), os.O_CREATE|os.O_EXCL, 0444)
-	if err != nil {
-		return VjHandle(jid), fmt.Errorf("OpenFile failed: %s", err)
+	if err := os.Symlink(status(os.Getpid()), vnetPath(VjHandle(jid))); err != nil {
+		return VjHandle(jid), fmt.Errorf("Symlink failed: %s", err)
 	}
-	f.Close()
 
 	return VjHandle(jid), nil
 }
@@ -94,16 +108,11 @@ func init_vnet() ([]unix.Iovec, error) {
 				Len: 0,
 			})
 		default:
-			return nil, fmt.Errorf("Unspported vakue type: {%s, %v}\n", param.key, param.value)
+			return nil, fmt.Errorf("Unspported value type: {%s, %v}", param.key, param.value)
 		}
 	}
 
 	return iovs, nil
-}
-
-// vnetPath return vnet jail file path.
-func vnetPath(vj VjHandle) string {
-	return fmt.Sprintf("%snetns%d", defVnetPath, vj)
 }
 
 func NewNamed(name string) (VjHandle, error) {
@@ -114,23 +123,45 @@ func DeleteNamed(name string) error {
 	return ErrNotImplemented
 }
 
+// Get gets a handle to the current vnet jail.
 func Get() (VjHandle, error) {
-	return -1, ErrNotImplemented
+	return GetFromPid(os.Getpid())
 }
 
+// GetFromPath gets a jail ID to a network namespace
+// identidied by the path
 func GetFromPath(path string) (VjHandle, error) {
-	return -1, ErrNotImplemented
+	file, err := os.Open(path)
+	if err != nil {
+		return -1, fmt.Errorf("Open failed: %s", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	if err := scanner.Err(); err != nil {
+		return -1, fmt.Errorf("scanner failed: %s", err)
+	}
+	fields := strings.Fields(scanner.Text())
+	if len(fields) == 0 {
+		return -1, fmt.Errorf("no fields found in the last line")
+	}
+	if fields[len(fields)-1] == "-" {
+		return 0, fmt.Errorf("The process specified by the path is running on the host.")
+	}
+	id, err := strconv.Atoi(fields[len(fields)-1])
+	if err != nil {
+		return -1, fmt.Errorf("Atoi failed: %s", err)
+	}
+	return VjHandle(id), nil
 }
 
 func GetFromName(name string) (VjHandle, error) {
 	return -1, ErrNotImplemented
 }
 
+// GetFromPid gets a handle to the vnet jail of a given pid.
 func GetFromPid(pid int) (VjHandle, error) {
-	return -1, ErrNotImplemented
-}
-
-func GetFromThread(pid int, tid int) (VjHandle, error) {
-	return -1, ErrNotImplemented
+	return GetFromPath(fmt.Sprintf("/proc/%d/status", pid))
 }
 

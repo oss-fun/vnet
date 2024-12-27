@@ -1,6 +1,7 @@
 package vnet
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 )
@@ -36,3 +37,22 @@ func TestString(t *testing.T) {
 	fmt.Println(jid.String())
 }
 */
+
+/*
+func TestGetFromPath(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	vj, err := GetFromPath("/var/run/netns/netns57")
+	fmt.Println(vj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vj, err = GetFromPath("/proc/0/status")
+	fmt.Println(vj)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+*/
+
