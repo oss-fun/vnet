@@ -42,4 +42,3 @@ func GetFromPid(pid int) (VjHandle, error) {
 func GetFromThread(pid int, tid int) (VjHandle, error) {
 	return -1, ErrNotImplemented
 }
-

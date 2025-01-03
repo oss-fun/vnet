@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -19,15 +21,9 @@ const (
 	JAIL_ATTACH = 0x04
 )
 
-
 // vnetPath return /var/run/netns/netns<jid>.
 func vnetPath(vj VjHandle) string {
-	return fmt.Sprintf("/var/run/netns/netns%d", vj)
-}
-
-// status return /proc/<pid>/status.
-func status(pid int) string {
-	return fmt.Sprintf("/proc/%d/status", pid)
+	return fmt.Sprintf("/var/run/netns/netns%d", int(vj))
 }
 
 // Set sets the host or current jail to the jail represented
@@ -38,8 +34,14 @@ func Set(vj VjHandle) error {
 		return fmt.Errorf("jail_attach failed: %s", errno.Error())
 	}
 
-	if err := os.Symlink(status(os.Getpid()), vnetPath(vj)); err != nil {
-		return fmt.Errorf("Symlink failed: %s", err)
+	f, err := os.OpenFile(vnetPath(vj), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("init_vnet failed: %s", err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(fmt.Sprintf("%d\n", os.Getpid())); err != nil {
+		return fmt.Errorf("WriteString failed: %s", err)
 	}
 
 	return nil
@@ -50,12 +52,12 @@ func Set(vj VjHandle) error {
 func New() (VjHandle, error) {
 	iov, err := init_vnet()
 	if err != nil {
-		return -1, fmt.Errorf("init_vnet failed: %s", err)	
+		return -1, fmt.Errorf("init_vnet failed: %s", err)
 	}
 
 	jid, _, errno := unix.Syscall(
-		unix.SYS_JAIL_SET, 
-		uintptr(unsafe.Pointer(&iov[0])), 
+		unix.SYS_JAIL_SET,
+		uintptr(unsafe.Pointer(&iov[0])),
 		uintptr(len(iov)),
 		uintptr(JAIL_CREATE|JAIL_ATTACH),
 	)
@@ -63,8 +65,14 @@ func New() (VjHandle, error) {
 		return -1, fmt.Errorf("jail_set failed: %s", errno.Error())
 	}
 
-	if err := os.Symlink(status(os.Getpid()), vnetPath(VjHandle(jid))); err != nil {
-		return VjHandle(jid), fmt.Errorf("Symlink failed: %s", err)
+	f, err := os.OpenFile(vnetPath(VjHandle(jid)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return VjHandle(jid), fmt.Errorf("OpenFile failed: %s", err)
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(fmt.Sprintf("%d\n", os.Getpid())); err != nil {
+		return VjHandle(jid), fmt.Errorf("WriteString failed: %s", err)
 	}
 
 	return VjHandle(jid), nil
@@ -73,7 +81,7 @@ func New() (VjHandle, error) {
 // init_vnet returns []unix.Iovec{} for vnet jail.
 func init_vnet() ([]unix.Iovec, error) {
 	params := []struct {
-		key string
+		key   string
 		value interface{}
 	}{
 		{"path", "/"},
@@ -105,7 +113,7 @@ func init_vnet() ([]unix.Iovec, error) {
 		case nil:
 			iovs = append(iovs, unix.Iovec{
 				Base: nil,
-				Len: 0,
+				Len:  0,
 			})
 		default:
 			return nil, fmt.Errorf("Unspported value type: {%s, %v}", param.key, param.value)
@@ -131,29 +139,17 @@ func Get() (VjHandle, error) {
 // GetFromPath gets a jail ID to a network namespace
 // identidied by the path
 func GetFromPath(path string) (VjHandle, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return -1, fmt.Errorf("Open failed: %s", err)
+	re := regexp.MustCompile(`\d+$`)
+	match := re.FindString(path)
+	if match == "" {
+		return -1, fmt.Errorf("no trailing number found")
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	scanner.Scan()
-	if err := scanner.Err(); err != nil {
-		return -1, fmt.Errorf("scanner failed: %s", err)
-	}
-	fields := strings.Fields(scanner.Text())
-	if len(fields) == 0 {
-		return -1, fmt.Errorf("no fields found in the last line")
-	}
-	if fields[len(fields)-1] == "-" {
-		return 0, fmt.Errorf("The process specified by the path is running on the host.")
-	}
-	id, err := strconv.Atoi(fields[len(fields)-1])
+	jid, err := strconv.Atoi(match)
 	if err != nil {
-		return -1, fmt.Errorf("Atoi failed: %s", err)
+		return -1, err
 	}
-	return VjHandle(id), nil
+	return VjHandle(jid), nil
 }
 
 func GetFromName(name string) (VjHandle, error) {
@@ -162,6 +158,42 @@ func GetFromName(name string) (VjHandle, error) {
 
 // GetFromPid gets a handle to the vnet jail of a given pid.
 func GetFromPid(pid int) (VjHandle, error) {
-	return GetFromPath(fmt.Sprintf("/proc/%d/status", pid))
-}
+	dir := "/var/run/netns"
+	var result string
 
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if num, err := strconv.Atoi(line); err == nil && num == pid {
+				result = path
+				return nil
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return -1, err
+	}
+
+	return GetFromPath(result)
+}

@@ -2,57 +2,46 @@ package vnet
 
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
 	"testing"
 )
 
-func TestNew(t *testing.T) {
+func TestNewGet(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	_, err := New()
+	newns, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
-}
 
-/*
-func TestClose(t *testing.T) {
-	var jid VjHandle
-	jid := 0
-	err := jid.Close()
+	ok, err := Get()
 	if err != nil {
 		t.Fatal(err)
 	}
+	if newns != ok {
+		t.Fatal(fmt.Errorf("newns id = %d, But Get() return %d", newns, ok))
+	}
 }
-*/
 
-/*
-func TestString(t *testing.T) {
+func TestSetGet(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	var jid VjHandle
-	jid = 0
-	fmt.Println(jid.String())
-}
-*/
-
-/*
-func TestGetFromPath(t *testing.T) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	vj, err := GetFromPath("/var/run/netns/netns57")
-	fmt.Println(vj)
+	jid, err := strconv.Atoi(os.Getenv("VNET_SET_TEST"))
+	err = Set(VjHandle(jid))
 	if err != nil {
 		t.Fatal(err)
 	}
-	vj, err = GetFromPath("/proc/0/status")
-	fmt.Println(vj)
+
+	ok, err := Get()
 	if err != nil {
 		t.Fatal(err)
 	}
+	if VjHandle(jid) != ok {
+		t.Fatal(fmt.Errorf("jid = %d, But Get() return %d", jid, ok))
+	}
 }
-*/
 

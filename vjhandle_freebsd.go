@@ -19,12 +19,12 @@ func (vj VjHandle) Equal(other VjHandle) bool {
 	}
 
 	var s1, s2 unix.Stat_t
-	f1, err := os.Open(vnetPath(vj));
+	f1, err := os.Open(vnetPath(vj))
 	if err != nil {
 		return false
 	}
 	defer f1.Close()
-	f2, err := os.Open(vnetPath(other));
+	f2, err := os.Open(vnetPath(other))
 	if err != nil {
 		return false
 	}
@@ -99,4 +99,3 @@ func (vj VjHandle) Close() error {
 func None() VjHandle {
 	return VjHandle(-1)
 }
-
