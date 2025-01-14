@@ -11,7 +11,7 @@ You can use go get command:
 
 Testing (requires root):
 
-    sudo -E go test github.com/oss-fun/vnet
+    sudo -E go test github.com/oss-fun/vnet -run Test***
 
 ## Example ##
 
@@ -19,32 +19,24 @@ Testing (requires root):
 package main
 
 import (
-    "fmt"
-    "net"
-    "runtime"
+        "fmt"
+        "net"
 
-    "github.com/vishvananda/netns"
+        "github.com/oss-fun/vnet"
 )
 
 func main() {
-    // Lock the OS Thread so we don't accidentally switch namespaces
-    runtime.LockOSThread()
-    defer runtime.UnlockOSThread()
+        // Create a new network namespace
+        newvj, _ := vnet.New()
 
-    // Save the current network namespace
-    origns, _ := vnet.Get()
-    defer origns.Close()
+        // Do something with the network namespace
+        curvj, _ := vnet.Get()
+        if newvj.Equal(curvj) {
+                fmt.Printf("OK!\n")
+        }
 
-    // Create a new network namespace
-    newns, _ := vnet.New()
-    defer newns.Close()
-
-    // Do something with the network namespace
-    ifaces, _ := net.Interfaces()
-    fmt.Printf("Interfaces: %v\n", ifaces)
-
-    // Switch back to the original namespace
-    netns.Set(origns)
+        ifaces, _ := net.Interfaces()
+        fmt.Printf("Interfaces: %v\n", ifaces)
 }
 
 ```
