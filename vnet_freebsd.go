@@ -95,7 +95,7 @@ func init_vnet() ([]unix.Iovec, error) {
 		// Add key
 		iovs = append(iovs, unix.Iovec{
 			Base: (*byte)(unsafe.Pointer(&[]byte(param.key)[0])),
-			Len:  uint32(len(param.key) + 1),
+			Len:  uint64(len(param.key) + 1),
 		})
 
 		// Add value
@@ -103,12 +103,12 @@ func init_vnet() ([]unix.Iovec, error) {
 		case string:
 			iovs = append(iovs, unix.Iovec{
 				Base: (*byte)(unsafe.Pointer(&[]byte(v)[0])),
-				Len:  uint32(len(v) + 1),
+				Len:  uint64(len(v) + 1),
 			})
 		case int:
 			iovs = append(iovs, unix.Iovec{
 				Base: (*byte)(unsafe.Pointer(&v)),
-				Len:  uint32(unsafe.Sizeof(int32(v))),
+				Len:  uint64(unsafe.Sizeof(int32(v))),
 			})
 		case nil:
 			iovs = append(iovs, unix.Iovec{
